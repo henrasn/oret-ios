@@ -11,7 +11,9 @@ import SwiftUI
 
 public struct FileExplorerScreen: View {
     @State private var viewModel: FileExplorerViewModel
+    @State private var showSyncHubSheet: Bool = false
     public var onSettings: (() -> Void)?
+    public var onSyncHub: (() -> Void)?
     public var onFileSelected: ((FileItem) -> Void)?
 
     public init(
@@ -19,6 +21,7 @@ public struct FileExplorerScreen: View {
         initialItems: [FileItem]? = nil,
         fileService: WorkspaceFilesystemProtocol? = nil,
         onSettings: (() -> Void)? = nil,
+        onSyncHub: (() -> Void)? = nil,
         onFileSelected: ((FileItem) -> Void)? = nil
     ) {
         self._viewModel = State(
@@ -29,6 +32,7 @@ public struct FileExplorerScreen: View {
             )
         )
         self.onSettings = onSettings
+        self.onSyncHub = onSyncHub
         self.onFileSelected = onFileSelected
     }
 
@@ -246,6 +250,13 @@ public struct FileExplorerScreen: View {
                 )
             }
         }
+        .sheet(isPresented: $showSyncHubSheet) {
+            ConnectionHubScreen(
+                onBack: {
+                    showSyncHubSheet = false
+                }
+            )
+        }
     }
 
     // MARK: - Header Top Bar (Stitch fa5a2a111bf44039bffd6418e37b3531)
@@ -277,23 +288,33 @@ public struct FileExplorerScreen: View {
             // Row 2: Status sync button, stats count, and expand/collapse actions
             HStack(spacing: 8) {
                 // Synced indicator button
-                HStack(spacing: 5) {
-                    Circle()
-                        .fill(AgedManuscriptTheme.Colors.statusGreen)
-                        .frame(width: 7, height: 7)
+                Button(action: {
+                    if let onSyncHub = onSyncHub {
+                        onSyncHub()
+                    } else {
+                        showSyncHubSheet = true
+                    }
+                }) {
+                    HStack(spacing: 5) {
+                        Circle()
+                            .fill(AgedManuscriptTheme.Colors.statusGreen)
+                            .frame(width: 7, height: 7)
 
-                    Text("Synced")
-                        .font(AgedManuscriptTheme.Fonts.sansLabel(size: 12, weight: .medium))
-                        .foregroundColor(AgedManuscriptTheme.Colors.inkPrimary)
+                        Text("Synced")
+                            .font(AgedManuscriptTheme.Fonts.sansLabel(size: 12, weight: .medium))
+                            .foregroundColor(AgedManuscriptTheme.Colors.inkPrimary)
+                    }
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 4)
+                    .background(AgedManuscriptTheme.Colors.parchment)
+                    .clipShape(RoundedRectangle(cornerRadius: 6))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 6)
+                            .stroke(AgedManuscriptTheme.Colors.parchmentBorder, lineWidth: 1)
+                    )
                 }
-                .padding(.horizontal, 8)
-                .padding(.vertical, 4)
-                .background(AgedManuscriptTheme.Colors.parchment)
-                .clipShape(RoundedRectangle(cornerRadius: 6))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 6)
-                        .stroke(AgedManuscriptTheme.Colors.parchmentBorder, lineWidth: 1)
-                )
+                .buttonStyle(PlainButtonStyle())
+                .accessibilityLabel(Text("Device Sync Status"))
 
                 Spacer()
 

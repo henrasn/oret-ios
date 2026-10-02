@@ -43,6 +43,20 @@ public enum AgedManuscriptTheme {
         public static let errorRed = Color(hex: "#BA1A1A")
         /// Stitch delete warning container background: #FFDAD6
         public static let errorContainer = Color(hex: "#FFDAD6")
+        /// Stitch connect window amber background: #FEF3C7
+        public static let amberWindowBg = Color(hex: "#FEF3C7")
+        /// Stitch connect window amber border: #FDE68A
+        public static let amberWindowBorder = Color(hex: "#FDE68A")
+        /// Stitch connect window amber text: #B45309
+        public static let amberWindowText = Color(hex: "#B45309")
+        /// Synced status pill background: #E8F1E7
+        public static let statusGreenBg = Color(hex: "#E8F1E7")
+        /// Synced status pill border: #C5DEC3
+        public static let statusGreenBorder = Color(hex: "#C5DEC3")
+        /// Trusted peer pill background: #E1EDDF
+        public static let trustedPeerBg = Color(hex: "#E1EDDF")
+        /// Trusted peer pill border: #BDD8B9
+        public static let trustedPeerBorder = Color(hex: "#BDD8B9")
     }
 
     // MARK: - Typography Modifiers
@@ -109,5 +123,45 @@ public struct ParchmentBackgroundModifier: ViewModifier {
 public extension View {
     func agedManuscriptBackground() -> some View {
         self.modifier(ParchmentBackgroundModifier())
+    }
+}
+
+#Preview("Aged Manuscript Theme Swatches") {
+    VStack(spacing: 8) {
+        Text("Aged Manuscript Palette")
+            .font(AgedManuscriptTheme.Fonts.serifTitle(size: 20))
+            .foregroundColor(AgedManuscriptTheme.Colors.inkPrimary)
+
+        HStack(spacing: 6) {
+            ColorSwatch(name: "Parchment", color: AgedManuscriptTheme.Colors.parchment)
+            ColorSwatch(name: "Field", color: AgedManuscriptTheme.Colors.parchmentField)
+            ColorSwatch(name: "Border", color: AgedManuscriptTheme.Colors.parchmentBorder)
+            ColorSwatch(name: "Ink Dark", color: AgedManuscriptTheme.Colors.inkDark)
+            ColorSwatch(name: "Crimson", color: AgedManuscriptTheme.Colors.crimsonAccent)
+            ColorSwatch(name: "Green", color: AgedManuscriptTheme.Colors.statusGreen)
+            ColorSwatch(name: "Amber", color: AgedManuscriptTheme.Colors.amberWindowBg)
+        }
+    }
+    .padding()
+    .agedManuscriptBackground()
+}
+
+private struct ColorSwatch: View {
+    let name: String
+    let color: Color
+
+    var body: some View {
+        VStack(spacing: 4) {
+            RoundedRectangle(cornerRadius: 4)
+                .fill(color)
+                .frame(width: 40, height: 40)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 4)
+                        .stroke(Color.black.opacity(0.1), lineWidth: 1)
+                )
+            Text(name)
+                .font(.system(size: 9))
+                .foregroundColor(AgedManuscriptTheme.Colors.inkSecondary)
+        }
     }
 }

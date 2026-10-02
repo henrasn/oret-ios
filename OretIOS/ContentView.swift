@@ -123,6 +123,23 @@ struct MainWorkspacePlaceholderView: View {
 
             Spacer()
 
+            Button(action: { showSyncHub = true }) {
+                HStack(spacing: 6) {
+                    Image(systemName: "arrow.triangle.2.circlepath")
+                    Text("Device Sync Hub")
+                }
+                .font(AgedManuscriptTheme.Fonts.sansBody(size: 14, weight: .semibold))
+                .foregroundColor(.white)
+                .frame(maxWidth: .infinity)
+                .frame(height: 44)
+                .background(AgedManuscriptTheme.Colors.inkDark)
+                .clipShape(RoundedRectangle(cornerRadius: 8))
+            }
+            .padding(.horizontal, 16)
+            .sheet(isPresented: $showSyncHub) {
+                ConnectionHubScreen(onBack: { showSyncHub = false })
+            }
+
             Button(action: onReset) {
                 Text("Reset Onboarding (Debug)")
                     .font(AgedManuscriptTheme.Fonts.sansLabel(size: 13, weight: .medium))
@@ -133,6 +150,8 @@ struct MainWorkspacePlaceholderView: View {
         .padding(24)
         .agedManuscriptBackground()
     }
+
+    @State private var showSyncHub: Bool = false
 }
 
 #Preview("App Coordinator") {
