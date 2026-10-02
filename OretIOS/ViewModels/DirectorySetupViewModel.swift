@@ -62,6 +62,10 @@ public final class DirectorySetupViewModel {
             let cleanFolder = self.folderName.trimmingCharacters(in: .whitespacesAndNewlines)
             UserDefaults.standard.set(cleanFolder, forKey: "localPath")
 
+            // Real sandbox directory initialization
+            let manager = WorkspaceFileManager(workspaceName: cleanFolder)
+            try? manager.ensureWorkspaceExists()
+
             completion(.success(cleanFolder))
         }
     }

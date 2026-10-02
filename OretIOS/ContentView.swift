@@ -17,6 +17,8 @@ struct ContentView: View {
     @AppStorage("hasCompletedOnboarding") private var hasCompletedOnboarding: Bool = false
     @AppStorage("localPath") private var localPath: String = ""
 
+    @State private var showSettingsSheet: Bool = false
+
     var body: some View {
         Group {
             switch currentFlowState {
@@ -34,13 +36,22 @@ struct ContentView: View {
                 )
 
             case .mainWorkspace:
-                MainWorkspacePlaceholderView(
-                    workspacePath: localPath,
-                    onReset: {
-                        hasCompletedOnboarding = false
-                        localPath = ""
+                FileExplorerScreen(
+                    workspaceName: localPath.isEmpty ? WorkspaceConfiguration.defaultFolderName : localPath,
+                    onSettings: {
+                        showSettingsSheet = true
                     }
                 )
+                .sheet(isPresented: $showSettingsSheet) {
+                    MainWorkspacePlaceholderView(
+                        workspacePath: localPath,
+                        onReset: {
+                            showSettingsSheet = false
+                            hasCompletedOnboarding = false
+                            localPath = ""
+                        }
+                    )
+                }
             }
         }
         .agedManuscriptBackground()

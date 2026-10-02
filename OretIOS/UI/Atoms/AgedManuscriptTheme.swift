@@ -35,6 +35,14 @@ public enum AgedManuscriptTheme {
         public static let oliveSage = Color(hex: "#4A6350")
         /// Warm pedestal shadow: #EDE3CF
         public static let warmShadow = Color(hex: "#EDE3CF")
+        /// Stitch folder amber accent: #A67C37
+        public static let folderAmber = Color(hex: "#A67C37")
+        /// Synced status green: #2E7D32
+        public static let statusGreen = Color(hex: "#2E7D32")
+        /// Stitch delete / error warning red: #BA1A1A
+        public static let errorRed = Color(hex: "#BA1A1A")
+        /// Stitch delete warning container background: #FFDAD6
+        public static let errorContainer = Color(hex: "#FFDAD6")
     }
 
     // MARK: - Typography Modifiers
