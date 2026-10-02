@@ -4,6 +4,7 @@
 //
 //  Mobile File Explorer Screen (Aged Manuscript theme)
 //  Conforms to Stitch Specifications fa5a2a111bf44039bffd6418e37b3531
+//  Integrated with real sandboxed FileManager persistence in Documents/notes.
 //
 
 import SwiftUI
@@ -14,14 +15,16 @@ public struct FileExplorerScreen: View {
     public var onFileSelected: ((FileItem) -> Void)?
 
     public init(
-        workspaceName: String = "personal-notes",
-        initialItems: [FileItem] = FileItem.sampleHierarchy,
+        workspaceName: String = "notes",
+        initialItems: [FileItem]? = nil,
+        fileService: WorkspaceFilesystemProtocol? = nil,
         onSettings: (() -> Void)? = nil,
         onFileSelected: ((FileItem) -> Void)? = nil
     ) {
         self._viewModel = State(
             initialValue: FileExplorerViewModel(
                 workspaceName: workspaceName,
+                fileService: fileService,
                 initialItems: initialItems
             )
         )
@@ -51,6 +54,9 @@ public struct FileExplorerScreen: View {
                     },
                     onSelect: { item in
                         viewModel.selectedItemId = item.id
+                        if !item.isDirectory {
+                            viewModel.openDocument(item: item)
+                        }
                         onFileSelected?(item)
                     },
                     onOptions: { item in
@@ -84,6 +90,43 @@ public struct FileExplorerScreen: View {
                         viewModel.showCreateModal = true
                     }
                 )
+            }
+
+            // Error Notification Banner
+            if let error = viewModel.errorMessage {
+                VStack {
+                    HStack(spacing: 8) {
+                        Image(systemName: "exclamationmark.triangle.fill")
+                            .foregroundColor(AgedManuscriptTheme.Colors.errorRed)
+
+                        Text(error)
+                            .font(AgedManuscriptTheme.Fonts.sansLabel(size: 13, weight: .medium))
+                            .foregroundColor(AgedManuscriptTheme.Colors.inkPrimary)
+                            .lineLimit(2)
+
+                        Spacer()
+
+                        Button(action: { viewModel.errorMessage = nil }) {
+                            Image(systemName: "xmark")
+                                .font(.system(size: 12, weight: .bold))
+                                .foregroundColor(AgedManuscriptTheme.Colors.inkSecondary)
+                        }
+                        .buttonStyle(PlainButtonStyle())
+                    }
+                    .padding(12)
+                    .background(AgedManuscriptTheme.Colors.errorContainer)
+                    .clipShape(RoundedRectangle(cornerRadius: 8))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 8)
+                            .stroke(AgedManuscriptTheme.Colors.errorRed.opacity(0.4), lineWidth: 1)
+                    )
+                    .padding(.horizontal, 16)
+                    .padding(.top, 56)
+
+                    Spacer()
+                }
+                .transition(.move(edge: .top).combined(with: .opacity))
+                .zIndex(40)
             }
 
             // Modal: File Options Bottom Sheet
@@ -184,6 +227,25 @@ public struct FileExplorerScreen: View {
         .animation(.easeInOut(duration: 0.2), value: viewModel.activeRenameItem != nil)
         .animation(.easeInOut(duration: 0.2), value: viewModel.activeDeleteItem != nil)
         .animation(.easeInOut(duration: 0.2), value: viewModel.activeMoveItem != nil)
+        .animation(.easeInOut(duration: 0.2), value: viewModel.errorMessage != nil)
+        .sheet(isPresented: Binding(
+            get: { viewModel.activeDocumentItem != nil },
+            set: { if !$0 { viewModel.closeDocument() } }
+        )) {
+            if let activeDoc = viewModel.activeDocumentItem {
+                DocumentEditorSheet(
+                    item: activeDoc,
+                    initialContent: viewModel.activeDocumentContent,
+                    isPresented: Binding(
+                        get: { viewModel.activeDocumentItem != nil },
+                        set: { if !$0 { viewModel.closeDocument() } }
+                    ),
+                    onSave: { newContent in
+                        viewModel.saveActiveDocument(content: newContent)
+                    }
+                )
+            }
+        }
     }
 
     // MARK: - Header Top Bar (Stitch fa5a2a111bf44039bffd6418e37b3531)
@@ -302,44 +364,60 @@ public struct FileExplorerScreen: View {
 
 #Preview("Clean Base Explorer") {
     FileExplorerScreen(
-        workspaceName: "personal-notes"
+        workspaceName: "personal-notes",
+        initialItems: FileItem.sampleHierarchy
     )
 }
 
 #Preview("File Options Sheet Open") {
-    let vm = FileExplorerViewModel(workspaceName: "personal-notes")
+    let vm = FileExplorerViewModel(
+        workspaceName: "personal-notes",
+        initialItems: FileItem.sampleHierarchy
+    )
     vm.activeOptionsItem = FileItem(
         name: "roadmap.md",
         path: "/Work/Q3 Planning/roadmap.md",
         isDirectory: false
     )
     return FileExplorerScreen(
-        workspaceName: "personal-notes"
+        workspaceName: "personal-notes",
+        initialItems: FileItem.sampleHierarchy
     )
 }
 
 #Preview("Create Item Modal Open") {
-    let vm = FileExplorerViewModel(workspaceName: "personal-notes")
+    let vm = FileExplorerViewModel(
+        workspaceName: "personal-notes",
+        initialItems: FileItem.sampleHierarchy
+    )
     vm.showCreateModal = true
     return FileExplorerScreen(
-        workspaceName: "personal-notes"
+        workspaceName: "personal-notes",
+        initialItems: FileItem.sampleHierarchy
     )
 }
 
 #Preview("Rename Note Modal Open") {
-    let vm = FileExplorerViewModel(workspaceName: "personal-notes")
+    let vm = FileExplorerViewModel(
+        workspaceName: "personal-notes",
+        initialItems: FileItem.sampleHierarchy
+    )
     vm.activeRenameItem = FileItem(
         name: "roadmap.md",
         path: "/Work/Q3 Planning/roadmap.md",
         isDirectory: false
     )
     return FileExplorerScreen(
-        workspaceName: "personal-notes"
+        workspaceName: "personal-notes",
+        initialItems: FileItem.sampleHierarchy
     )
 }
 
 #Preview("Delete Confirmation Open") {
-    let vm = FileExplorerViewModel(workspaceName: "personal-notes")
+    let vm = FileExplorerViewModel(
+        workspaceName: "personal-notes",
+        initialItems: FileItem.sampleHierarchy
+    )
     vm.activeDeleteItem = FileItem(
         name: "roadmap.md",
         path: "/Work/Q3 Planning/roadmap.md",
@@ -347,18 +425,23 @@ public struct FileExplorerScreen: View {
         sizeBytes: 2457
     )
     return FileExplorerScreen(
-        workspaceName: "personal-notes"
+        workspaceName: "personal-notes",
+        initialItems: FileItem.sampleHierarchy
     )
 }
 
 #Preview("Move Path Modal Open") {
-    let vm = FileExplorerViewModel(workspaceName: "personal-notes")
+    let vm = FileExplorerViewModel(
+        workspaceName: "personal-notes",
+        initialItems: FileItem.sampleHierarchy
+    )
     vm.activeMoveItem = FileItem(
         name: "roadmap.md",
         path: "/Work/Q3 Planning/roadmap.md",
         isDirectory: false
     )
     return FileExplorerScreen(
-        workspaceName: "personal-notes"
+        workspaceName: "personal-notes",
+        initialItems: FileItem.sampleHierarchy
     )
 }

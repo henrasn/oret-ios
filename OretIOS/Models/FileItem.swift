@@ -54,6 +54,18 @@ public struct FileItem: Identifiable, Equatable, Hashable {
             children: kmpModel.children.map { FileItem(kmpModel: $0) }
         )
     }
+
+    public func toKmpModel() -> FileItemModel {
+        FileItemModel(
+            id: id,
+            name: name,
+            path: path,
+            isDirectory: isDirectory,
+            sizeBytes: sizeBytes,
+            tags: tags,
+            children: children.map { $0.toKmpModel() }
+        )
+    }
     #endif
 
     // MARK: - Computed Properties

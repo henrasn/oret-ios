@@ -37,7 +37,7 @@ struct ContentView: View {
 
             case .mainWorkspace:
                 FileExplorerScreen(
-                    workspaceName: localPath.isEmpty ? "personal-notes" : localPath,
+                    workspaceName: localPath.isEmpty ? WorkspaceConfiguration.defaultFolderName : localPath,
                     onSettings: {
                         showSettingsSheet = true
                     }
