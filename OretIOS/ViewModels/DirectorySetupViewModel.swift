@@ -8,6 +8,10 @@
 import Foundation
 import Observation
 
+#if canImport(SharedLogic)
+import SharedLogic
+#endif
+
 @Observable
 public final class DirectorySetupViewModel {
     public var folderName: String = WorkspaceConfiguration.defaultFolderName {
@@ -24,10 +28,17 @@ public final class DirectorySetupViewModel {
         validatePath()
     }
 
+    /// Validates path by consuming KMP WorkspacePathValidator
     public func validatePath() {
+        #if canImport(SharedLogic)
+        let result = WorkspacePathValidator.shared.validate(path: folderName)
+        self.isValid = result.isValid
+        self.validationError = result.errorMessage
+        #else
         let result = WorkspaceConfiguration.validate(folderName: folderName)
         self.isValid = result.isValid
         self.validationError = result.errorMessage
+        #endif
     }
 
     public func confirmAndInitialize(completion: @escaping (Result<String, Error>) -> Void) {

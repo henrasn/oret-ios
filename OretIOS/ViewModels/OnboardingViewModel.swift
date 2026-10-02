@@ -8,6 +8,10 @@
 import Foundation
 import Observation
 
+#if canImport(SharedLogic)
+import SharedLogic
+#endif
+
 @Observable
 public final class OnboardingViewModel {
     public var currentSlideIndex: Int = 0
@@ -18,6 +22,13 @@ public final class OnboardingViewModel {
         self.slides = slides
         self.hasCompletedOnboarding = UserDefaults.standard.bool(forKey: "hasCompletedOnboarding")
     }
+
+    #if canImport(SharedLogic)
+    /// Direct consumption of KMP exported OnboardingSlideModel collection
+    public convenience init(kmpSlides: [OnboardingSlideModel]) {
+        self.init(slides: OnboardingSlide.fromKmpSlides(kmpSlides))
+    }
+    #endif
 
     public var isFirstSlide: Bool {
         currentSlideIndex == 0

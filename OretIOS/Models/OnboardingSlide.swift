@@ -37,8 +37,41 @@ public struct OnboardingSlide: Identifiable, Equatable {
         self.illustrationType = illustrationType
     }
 
-    /// Canonical slides matching Stitch specifications
-    public static let canonicalSlides: [OnboardingSlide] = [
+    #if canImport(SharedLogic)
+    /// Direct bridge initializer consuming exported KMP OnboardingSlideModel
+    public init(kmpModel: OnboardingSlideModel) {
+        let type: OnboardingIllustrationType
+        switch kmpModel.id {
+        case 1: type = .localStorage
+        case 2: type = .directSync
+        case 3: type = .intelligentReconciliation
+        default: type = .localStorage
+        }
+        self.init(
+            id: Int(kmpModel.id),
+            title: kmpModel.title,
+            description: kmpModel.description,
+            illustrationType: type
+        )
+    }
+
+    /// Maps exported KMP slide models into native UI slides
+    public static func fromKmpSlides(_ kmpSlides: [OnboardingSlideModel]) -> [OnboardingSlide] {
+        return kmpSlides.map { OnboardingSlide(kmpModel: $0) }
+    }
+    #endif
+
+    /// Canonical slides matching Stitch specifications & KMP definitions
+    public static var canonicalSlides: [OnboardingSlide] {
+        #if canImport(SharedLogic)
+        return fromKmpSlides(OnboardingContent.shared.slides)
+        #else
+        return fallbackSlides
+        #endif
+    }
+
+    /// Fallback slides used when SharedLogic framework is not loaded
+    public static let fallbackSlides: [OnboardingSlide] = [
         OnboardingSlide(
             id = 1,
             title: "Your Notes, Stored Locally",

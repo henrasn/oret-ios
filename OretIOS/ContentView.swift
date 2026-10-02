@@ -7,7 +7,7 @@
 
 import SwiftUI
 
-enum AppFlowState {
+enum AppFlowState: Equatable, CaseIterable {
     case onboarding
     case directorySetup
     case mainWorkspace
@@ -16,7 +16,6 @@ enum AppFlowState {
 struct ContentView: View {
     @AppStorage("hasCompletedOnboarding") private var hasCompletedOnboarding: Bool = false
     @AppStorage("localPath") private var localPath: String = ""
-    @State private var flowState: AppFlowState = .onboarding
 
     var body: some View {
         Group {
@@ -24,17 +23,13 @@ struct ContentView: View {
             case .onboarding:
                 OnboardingScreen {
                     hasCompletedOnboarding = true
-                    flowState = .directorySetup
                 }
 
             case .directorySetup:
                 DirectorySetupScreen(
-                    onBack: hasCompletedOnboarding ? nil : {
-                        flowState = .onboarding
-                    },
+                    onBack: nil,
                     onWorkspaceInitialized: { folder in
                         localPath = folder
-                        flowState = .mainWorkspace
                     }
                 )
 
@@ -44,7 +39,6 @@ struct ContentView: View {
                     onReset: {
                         hasCompletedOnboarding = false
                         localPath = ""
-                        flowState = .onboarding
                     }
                 )
             }
@@ -52,7 +46,12 @@ struct ContentView: View {
         .agedManuscriptBackground()
     }
 
-    private var currentFlowState: AppFlowState {
+    /// Rehydration State Machine matching onboarding_and_setup.md Sections 2 & 3:
+    /// - Cold Start: Reads hasCompletedOnboarding & localPath from persistent storage
+    /// - Gate 1: If hasCompletedOnboarding == false -> Show .onboarding
+    /// - Gate 2: If hasCompletedOnboarding == true && localPath.isEmpty -> Show .directorySetup
+    /// - Gate 3: If hasCompletedOnboarding == true && !localPath.isEmpty -> Show .mainWorkspace
+    var currentFlowState: AppFlowState {
         if !hasCompletedOnboarding {
             return .onboarding
         } else if localPath.isEmpty {
@@ -125,6 +124,13 @@ struct MainWorkspacePlaceholderView: View {
     }
 }
 
-#Preview {
+#Preview("App Coordinator") {
     ContentView()
+}
+
+#Preview("Workspace Rehydrated") {
+    MainWorkspacePlaceholderView(
+        workspacePath: "notes",
+        onReset: {}
+    )
 }

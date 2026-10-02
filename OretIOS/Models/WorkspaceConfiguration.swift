@@ -7,6 +7,10 @@
 
 import Foundation
 
+#if canImport(SharedLogic)
+import SharedLogic
+#endif
+
 public struct WorkspacePathValidation: Equatable {
     public let isValid: Bool
     public let errorMessage: String?
@@ -20,12 +24,20 @@ public struct WorkspacePathValidation: Equatable {
 public struct WorkspaceConfiguration {
     public static let defaultFolderName = "notes"
 
-    /// Validates a relative folder name according to sandbox and security specifications
+    /// Validates a relative folder name consuming KMP WorkspacePathValidator when available
     public static func validate(folderName: String) -> WorkspacePathValidation {
+        #if canImport(SharedLogic)
+        let kmpResult = WorkspacePathValidator.shared.validate(path: folderName)
+        if kmpResult.isValid {
+            return .valid
+        } else {
+            return .invalid(kmpResult.errorMessage ?? "Invalid folder path")
+        }
+        #else
         let trimmed = folderName.trimmingCharacters(in: .whitespacesAndNewlines)
 
         if trimmed.isEmpty {
-            return .invalid("Folder name cannot be empty")
+            return .invalid("Folder path cannot be empty")
         }
 
         if trimmed.contains("..") {
@@ -38,10 +50,11 @@ public struct WorkspaceConfiguration {
 
         let illegalCharacters = CharacterSet(charactersIn: ":*?\"<>|\0")
         if trimmed.rangeOfCharacter(from: illegalCharacters) != nil {
-            return .invalid("Folder name contains invalid characters")
+            return .invalid("Folder path contains invalid characters")
         }
 
         return .valid
+        #endif
     }
 
     /// Resolves the human-readable sandbox path string for UI hints
