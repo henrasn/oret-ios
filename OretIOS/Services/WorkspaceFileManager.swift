@@ -65,6 +65,9 @@ public protocol WorkspaceFilesystemProtocol: AnyObject {
     func moveItem(from sourceRelativePath: String, to targetParentPath: String) throws -> FileItem
     func duplicateItem(at relativePath: String) throws -> FileItem
     func deleteItem(at relativePath: String) throws
+    func savePendingRevision(revision: String, resolutions: [String: String]) throws -> URL
+    func readPendingRevision() -> [String: Any]?
+    func clearPendingRevision()
 }
 
 // MARK: - Workspace File Manager Implementation
@@ -749,4 +752,42 @@ public final class WorkspaceFileManager: WorkspaceFilesystemProtocol {
 
         return Array(tagsSet).sorted()
     }
+
+    // MARK: - Offline Disconnect Pending Storage (.syncstore/pending.json)
+
+    @discardableResult
+    public func savePendingRevision(revision: String, resolutions: [String: String]) throws -> URL {
+        let syncStoreURL = baseURL.appendingPathComponent(".syncstore", isDirectory: true)
+        if !fileManager.fileExists(atPath: syncStoreURL.path) {
+            try fileManager.createDirectory(at: syncStoreURL, withIntermediateDirectories: true)
+        }
+        let pendingFileURL = syncStoreURL.appendingPathComponent("pending.json")
+        let payload: [String: Any] = [
+            "revisionId": revision,
+            "status": "resolvedLocally",
+            "timestamp": Date().timeIntervalSince1970,
+            "resolutions": resolutions
+        ]
+        let data = try JSONSerialization.data(withJSONObject: payload, options: [.prettyPrinted])
+        try data.write(to: pendingFileURL, options: .atomic)
+        return pendingFileURL
+    }
+
+    public func readPendingRevision() -> [String: Any]? {
+        let pendingFileURL = baseURL.appendingPathComponent(".syncstore/pending.json")
+        guard fileManager.fileExists(atPath: pendingFileURL.path),
+              let data = try? Data(contentsOf: pendingFileURL),
+              let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+            return nil
+        }
+        return json
+    }
+
+    public func clearPendingRevision() {
+        let pendingFileURL = baseURL.appendingPathComponent(".syncstore/pending.json")
+        if fileManager.fileExists(atPath: pendingFileURL.path) {
+            try? fileManager.removeItem(at: pendingFileURL)
+        }
+    }
 }
+

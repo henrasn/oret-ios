@@ -29,13 +29,17 @@ public final class ConflictResolutionViewModel {
         conflicts.first { $0.id == activeFileId } ?? conflicts.first
     }
 
+    private let fileService: WorkspaceFilesystemProtocol?
+
     public init(
         conflicts: [ConflictingFileItem] = ConflictResolutionViewModel.defaultSampleConflicts(),
+        fileService: WorkspaceFilesystemProtocol? = nil,
         isPeerConnected: Bool = true,
         localDeviceName: String = "iPhone 15 Pro",
         peerDeviceName: String = "MacBook Pro"
     ) {
         self.conflicts = conflicts
+        self.fileService = fileService
         self.activeFileId = conflicts.first?.id
         self.activeHunkId = conflicts.first?.hunks.first?.id
         self.isPeerConnected = isPeerConnected
@@ -74,6 +78,7 @@ public final class ConflictResolutionViewModel {
     public func applyResolutions() -> SyncSummaryReport? {
         guard allResolved else { return nil }
         isResolving = true
+        fileService?.clearPendingRevision()
         let result = SyncSummaryReport(
             autoMergedCount: 4,
             resolvedConflictsCount: conflicts.count,
@@ -93,6 +98,10 @@ public final class ConflictResolutionViewModel {
         guard allResolved else { return nil }
         let rev = "rev-3f8b9c1d"
         self.pendingRevisionId = rev
+        let resolutions = conflicts.reduce(into: [String: String]()) { map, file in
+            map[file.id] = file.resolvedStrategy?.rawValue ?? "local"
+        }
+        _ = try? fileService?.savePendingRevision(revision: rev, resolutions: resolutions)
         return rev
     }
 
