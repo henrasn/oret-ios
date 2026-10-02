@@ -11,6 +11,7 @@ import SwiftUI
 public struct DocumentEditorSheet: View {
     public let item: FileItem
     public let initialContent: String
+    public var isReadOnly: Bool = false
     @Binding public var isPresented: Bool
     public let onSave: (String) -> Void
 
@@ -21,11 +22,13 @@ public struct DocumentEditorSheet: View {
     public init(
         item: FileItem,
         initialContent: String,
+        isReadOnly: Bool = false,
         isPresented: Binding<Bool>,
         onSave: @escaping (String) -> Void
     ) {
         self.item = item
         self.initialContent = initialContent
+        self.isReadOnly = isReadOnly
         self._isPresented = isPresented
         self.onSave = onSave
         self._content = State(initialValue: initialContent)
@@ -39,6 +42,30 @@ public struct DocumentEditorSheet: View {
                     .ignoresSafeArea()
 
                 VStack(spacing: 0) {
+                    // Lock Warning Bar if Read-Only Mode Active
+                    if isReadOnly {
+                        HStack(spacing: 8) {
+                            Image(systemName: "lock.fill")
+                                .font(.system(size: 13))
+                                .foregroundColor(AgedManuscriptTheme.Colors.folderAmber)
+
+                            Text("Workspace is locked during active sync. Content is Read-Only.")
+                                .font(AgedManuscriptTheme.Fonts.sansLabel(size: 12, weight: .medium))
+                                .foregroundColor(AgedManuscriptTheme.Colors.inkPrimary)
+
+                            Spacer()
+                        }
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 8)
+                        .background(Color(hex: "#FAF3E0"))
+                        .overlay(
+                            Rectangle()
+                                .fill(AgedManuscriptTheme.Colors.parchmentBorder)
+                                .frame(height: 1),
+                            alignment: .bottom
+                        )
+                    }
+
                     // Document Metadata Subheader
                     documentMetadataBar
 
@@ -54,12 +81,15 @@ public struct DocumentEditorSheet: View {
                             .background(AgedManuscriptTheme.Colors.parchment)
                             .padding(.horizontal, 16)
                             .padding(.vertical, 12)
+                            .disabled(isReadOnly)
                             .onChange(of: content) { _, newValue in
-                                hasUnsavedChanges = (newValue != initialContent)
+                                if !isReadOnly {
+                                    hasUnsavedChanges = (newValue != initialContent)
+                                }
                             }
 
                         if content.isEmpty {
-                            Text("Start typing markdown note here...")
+                            Text(isReadOnly ? "Empty file" : "Start typing markdown note here...")
                                 .font(AgedManuscriptTheme.Fonts.sansBody(size: 15))
                                 .foregroundColor(AgedManuscriptTheme.Colors.inkSecondary.opacity(0.6))
                                 .padding(.horizontal, 20)
@@ -84,34 +114,53 @@ public struct DocumentEditorSheet: View {
                 }
 
                 ToolbarItem(placement: .confirmationAction) {
-                    Button(action: saveDocument) {
+                    if isReadOnly {
                         HStack(spacing: 4) {
-                            if showSavedIndicator {
-                                Image(systemName: "checkmark")
-                                    .font(.system(size: 12, weight: .bold))
-                                Text("Saved")
-                            } else {
-                                Image(systemName: "square.and.arrow.down")
-                                    .font(.system(size: 12, weight: .semibold))
-                                Text("Save")
-                            }
+                            Image(systemName: "lock")
+                                .font(.system(size: 11, weight: .semibold))
+                            Text("Locked")
+                                .font(AgedManuscriptTheme.Fonts.sansLabel(size: 12, weight: .semibold))
                         }
-                        .font(AgedManuscriptTheme.Fonts.sansBody(size: 14, weight: .medium))
-                        .foregroundColor(hasUnsavedChanges ? .white : AgedManuscriptTheme.Colors.inkSecondary)
-                        .padding(.horizontal, 12)
+                        .foregroundColor(AgedManuscriptTheme.Colors.inkSecondary)
+                        .padding(.horizontal, 10)
                         .padding(.vertical, 6)
-                        .background(
-                            hasUnsavedChanges
-                                ? AgedManuscriptTheme.Colors.inkDark
-                                : AgedManuscriptTheme.Colors.parchmentField
-                        )
+                        .background(AgedManuscriptTheme.Colors.parchmentField)
                         .clipShape(RoundedRectangle(cornerRadius: 6))
                         .overlay(
                             RoundedRectangle(cornerRadius: 6)
                                 .stroke(AgedManuscriptTheme.Colors.parchmentBorder, lineWidth: 1)
                         )
+                        .accessibilityLabel(Text("Document is locked in read-only mode during sync"))
+                    } else {
+                        Button(action: saveDocument) {
+                            HStack(spacing: 4) {
+                                if showSavedIndicator {
+                                    Image(systemName: "checkmark")
+                                        .font(.system(size: 12, weight: .bold))
+                                    Text("Saved")
+                                } else {
+                                    Image(systemName: "square.and.arrow.down")
+                                        .font(.system(size: 12, weight: .semibold))
+                                    Text("Save")
+                                }
+                            }
+                            .font(AgedManuscriptTheme.Fonts.sansBody(size: 14, weight: .medium))
+                            .foregroundColor(hasUnsavedChanges ? .white : AgedManuscriptTheme.Colors.inkSecondary)
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 6)
+                            .background(
+                                hasUnsavedChanges
+                                    ? AgedManuscriptTheme.Colors.inkDark
+                                    : AgedManuscriptTheme.Colors.parchmentField
+                            )
+                            .clipShape(RoundedRectangle(cornerRadius: 6))
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 6)
+                                    .stroke(AgedManuscriptTheme.Colors.parchmentBorder, lineWidth: 1)
+                            )
+                        }
+                        .buttonStyle(PlainButtonStyle())
                     }
-                    .buttonStyle(PlainButtonStyle())
                 }
             }
         }
@@ -157,7 +206,15 @@ public struct DocumentEditorSheet: View {
 
             Spacer()
 
-            if hasUnsavedChanges {
+            if isReadOnly {
+                HStack(spacing: 4) {
+                    Image(systemName: "lock.fill")
+                        .font(.system(size: 9))
+                    Text("Read-Only (Sync Active)")
+                        .font(AgedManuscriptTheme.Fonts.sansLabel(size: 11, weight: .medium))
+                }
+                .foregroundColor(AgedManuscriptTheme.Colors.inkSecondary)
+            } else if hasUnsavedChanges {
                 Text("Unsaved changes")
                     .font(AgedManuscriptTheme.Fonts.sansLabel(size: 11, weight: .medium))
                     .foregroundColor(AgedManuscriptTheme.Colors.crimsonAccent)
@@ -219,6 +276,21 @@ public struct DocumentEditorSheet: View {
 
         Last updated: Today
         """,
+        isPresented: .constant(true),
+        onSave: { _ in }
+    )
+}
+
+#Preview("Document Editor - Read-Only Sync") {
+    DocumentEditorSheet(
+        item: FileItem(
+            name: "roadmap.md",
+            path: "/Work/Q3 Planning/roadmap.md",
+            isDirectory: false,
+            tags: ["#all", "#project", "#ideas"]
+        ),
+        initialContent: "# Q3 Product Roadmap\n\nContent is locked in read-only mode during active sync.",
+        isReadOnly: true,
         isPresented: .constant(true),
         onSave: { _ in }
     )

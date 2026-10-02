@@ -10,6 +10,7 @@ import SwiftUI
 public struct FileTreeView: View {
     public let items: [FileItem]
     public var selectedItemId: String?
+    public var isSyncing: Bool = false
     public var inlineCreationTarget: String?
     @Binding public var inlineCreationName: String
     public var inlineCreationIsFolder: Bool
@@ -22,6 +23,7 @@ public struct FileTreeView: View {
     public init(
         items: [FileItem],
         selectedItemId: String? = nil,
+        isSyncing: Bool = false,
         inlineCreationTarget: String? = nil,
         inlineCreationName: Binding<String> = .constant(""),
         inlineCreationIsFolder: Bool = false,
@@ -33,6 +35,7 @@ public struct FileTreeView: View {
     ) {
         self.items = items
         self.selectedItemId = selectedItemId
+        self.isSyncing = isSyncing
         self.inlineCreationTarget = inlineCreationTarget
         self._inlineCreationName = inlineCreationName
         self.inlineCreationIsFolder = inlineCreationIsFolder
@@ -46,8 +49,8 @@ public struct FileTreeView: View {
     public var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 2) {
-                // Root-level inline creation if active at "/"
-                if inlineCreationTarget == "/" {
+                // Root-level inline creation if active at "/" (suppressed if syncing)
+                if !isSyncing && inlineCreationTarget == "/" {
                     inlineCreationRow(depth: 0)
                 }
 
@@ -72,6 +75,7 @@ public struct FileTreeView: View {
             item: item,
             depth: depth,
             isSelected: item.id == selectedItemId,
+            isSyncing: isSyncing,
             onToggleExpand: {
                 onToggleExpand(item)
             },
@@ -85,8 +89,8 @@ public struct FileTreeView: View {
 
         // If folder is expanded, render children and any inline creation row targeted at this folder
         if item.isDirectory && item.isExpanded {
-            // Inline creation row inside this folder
-            if inlineCreationTarget == item.path {
+            // Inline creation row inside this folder (suppressed if syncing)
+            if !isSyncing && inlineCreationTarget == item.path {
                 inlineCreationRow(depth: depth + 1)
             }
 

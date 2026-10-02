@@ -25,6 +25,10 @@ public final class ConnectionHubViewModel {
     public var showScanCameraSheet: Bool = false
     public var errorMessage: String? = nil
 
+    // Sub-ViewModels
+    public var hostPairingVM: HostPairingViewModel
+    public var clientConnectorVM: ClientConnectorViewModel
+
     public init(
         localDevice: LocalDeviceInfo = .sample,
         peerDevice: PeerDeviceInfo? = .sample,
@@ -33,6 +37,25 @@ public final class ConnectionHubViewModel {
         self.localDevice = localDevice
         self.peerDevice = peerDevice
         self.syncState = syncState
+
+        let hostVM = HostPairingViewModel(
+            initialRole: .thisDevice,
+            connectWindowSeconds: 272,
+            localDeviceId: localDevice.fingerprint,
+            peerDeviceId: peerDevice?.fingerprint ?? "peer"
+        )
+        self.hostPairingVM = hostVM
+
+        let clientVM = ClientConnectorViewModel(
+            initialTab: .manualInput,
+            localDeviceId: localDevice.fingerprint
+        )
+        self.clientConnectorVM = clientVM
+
+        // Wire client connector success callback
+        self.clientConnectorVM.onConnected = { [weak self] peer, payload in
+            self?.handlePeerConnected(peer: peer, payload: payload)
+        }
     }
 
     // MARK: - Actions
@@ -57,5 +80,11 @@ public final class ConnectionHubViewModel {
 
     public func setSynced() {
         self.syncState = .synced(syncedAt: "Just now")
+    }
+
+    private func handlePeerConnected(peer: PeerDeviceInfo, payload: PairingPayload) {
+        self.peerDevice = peer
+        self.syncState = .connected(peerName: peer.deviceName)
+        self.showScanCameraSheet = false
     }
 }

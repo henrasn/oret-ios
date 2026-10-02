@@ -48,18 +48,19 @@ public struct ConnectionHubScreen: View {
         // Host Mode Pairing Modal Sheet
         .sheet(isPresented: $viewModel.showHostPairingSheet) {
             HostPairingScreen(
+                viewModel: viewModel.hostPairingVM,
                 onCancel: {
                     viewModel.showHostPairingSheet = false
                 }
             )
         }
-        // Camera Scanner Modal Sheet (Simulated or Camera Capture)
+        // Client Mode Connector & Manual Payload Entry Modal Sheet
         .sheet(isPresented: $viewModel.showScanCameraSheet) {
-            CameraScannerMockSheet(
+            ManualPayloadModal(
+                viewModel: viewModel.clientConnectorVM,
                 isPresented: $viewModel.showScanCameraSheet,
-                onScannedPayload: { _ in
+                onConnectSuccess: {
                     viewModel.showScanCameraSheet = false
-                    viewModel.setConnected(peer: .sample)
                 }
             )
         }
@@ -117,70 +118,6 @@ public struct ConnectionHubScreen: View {
     }
 }
 
-// MARK: - Camera Scanner Sheet Helper
-private struct CameraScannerMockSheet: View {
-    @Binding var isPresented: Bool
-    let onScannedPayload: (String) -> Void
-
-    var body: some View {
-        VStack(spacing: 24) {
-            HStack {
-                Button("Cancel") {
-                    isPresented = false
-                }
-                .font(AgedManuscriptTheme.Fonts.sansBody(size: 14, weight: .medium))
-                .foregroundColor(AgedManuscriptTheme.Colors.inkSecondary)
-
-                Spacer()
-
-                Text("Scan Peer QR Code")
-                    .font(AgedManuscriptTheme.Fonts.serifTitle(size: 17, weight: .semibold))
-                    .foregroundColor(AgedManuscriptTheme.Colors.inkPrimary)
-
-                Spacer()
-
-                Color.clear.frame(width: 48, height: 20)
-            }
-            .padding(.horizontal, 16)
-            .padding(.top, 16)
-
-            Spacer()
-
-            // Viewfinder reticle
-            ZStack {
-                RoundedRectangle(cornerRadius: 16)
-                    .stroke(AgedManuscriptTheme.Colors.inkDark, lineWidth: 3)
-                    .frame(width: 240, height: 240)
-
-                Image(systemName: "viewfinder")
-                    .font(.system(size: 180, weight: .ultraLight))
-                    .foregroundColor(AgedManuscriptTheme.Colors.inkSecondary.opacity(0.4))
-            }
-
-            Text("Align peer pairing QR code within frame")
-                .font(AgedManuscriptTheme.Fonts.sansBody(size: 13, weight: .regular))
-                .foregroundColor(AgedManuscriptTheme.Colors.inkSecondary)
-
-            Spacer()
-
-            // Connect button for simulation
-            Button(action: {
-                onScannedPayload(PairingPayload.sample.formattedJson())
-            }) {
-                Text("Simulate Successful Scan")
-                    .font(AgedManuscriptTheme.Fonts.sansBody(size: 14, weight: .semibold))
-                    .foregroundColor(.white)
-                    .frame(maxWidth: .infinity)
-                    .frame(height: 48)
-                    .background(AgedManuscriptTheme.Colors.inkDark)
-                    .clipShape(RoundedRectangle(cornerRadius: 8))
-            }
-            .padding(.horizontal, 24)
-            .padding(.bottom, 24)
-        }
-        .agedManuscriptBackground()
-    }
-}
 
 // MARK: - SwiftUI #Previews
 
