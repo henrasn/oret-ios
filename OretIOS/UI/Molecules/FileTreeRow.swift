@@ -11,6 +11,7 @@ public struct FileTreeRow: View {
     public let item: FileItem
     public let depth: Int
     public var isSelected: Bool = false
+    public var isSyncing: Bool = false
     public let onToggleExpand: () -> Void
     public let onSelect: () -> Void
     public let onOptionsTapped: () -> Void
@@ -19,6 +20,7 @@ public struct FileTreeRow: View {
         item: FileItem,
         depth: Int = 0,
         isSelected: Bool = false,
+        isSyncing: Bool = false,
         onToggleExpand: @escaping () -> Void,
         onSelect: @escaping () -> Void,
         onOptionsTapped: @escaping () -> Void
@@ -26,6 +28,7 @@ public struct FileTreeRow: View {
         self.item = item
         self.depth = depth
         self.isSelected = isSelected
+        self.isSyncing = isSyncing
         self.onToggleExpand = onToggleExpand
         self.onSelect = onSelect
         self.onOptionsTapped = onOptionsTapped
@@ -90,16 +93,24 @@ public struct FileTreeRow: View {
                         .cornerRadius(3)
                 }
 
-                // Trailing More Options Button (ellipsis)
-                Button(action: onOptionsTapped) {
-                    Image(systemName: "ellipsis")
-                        .font(.system(size: 15, weight: .medium))
-                        .foregroundColor(AgedManuscriptTheme.Colors.inkMuted)
+                // Trailing More Options Button (ellipsis) or Lock indicator when syncing
+                if !isSyncing {
+                    Button(action: onOptionsTapped) {
+                        Image(systemName: "ellipsis")
+                            .font(.system(size: 15, weight: .medium))
+                            .foregroundColor(AgedManuscriptTheme.Colors.inkMuted)
+                            .frame(width: 28, height: 28)
+                            .contentShape(Rectangle())
+                    }
+                    .buttonStyle(PlainButtonStyle())
+                    .accessibilityLabel(Text("Options for \(item.name)"))
+                } else {
+                    Image(systemName: "lock")
+                        .font(.system(size: 11, weight: .regular))
+                        .foregroundColor(AgedManuscriptTheme.Colors.inkMuted.opacity(0.4))
                         .frame(width: 28, height: 28)
-                        .contentShape(Rectangle())
+                        .accessibilityLabel(Text("Actions locked during sync"))
                 }
-                .buttonStyle(PlainButtonStyle())
-                .accessibilityLabel(Text("Options for \(item.name)"))
             }
             .padding(.horizontal, 8)
             .padding(.vertical, 6)

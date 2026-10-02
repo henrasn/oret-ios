@@ -43,6 +43,18 @@ public final class FileExplorerViewModel {
     // Sync State
     public var isSynced: Bool = true
 
+    // Sync Lock State (Write-Lock Guard)
+    public var isSyncing: Bool = false {
+        didSet {
+            fileService.isSyncing = isSyncing
+            if isSyncing {
+                closeModalsAndSheets()
+            }
+        }
+    }
+    public var syncingPeerName: String? = nil
+    public var isResolver: Bool = false
+
     // Error Notification State
     public var errorMessage: String? = nil
 
@@ -52,11 +64,16 @@ public final class FileExplorerViewModel {
     public init(
         workspaceName: String = "notes",
         fileService: WorkspaceFilesystemProtocol? = nil,
-        initialItems: [FileItem]? = nil
+        initialItems: [FileItem]? = nil,
+        isSyncing: Bool = false,
+        syncingPeerName: String? = nil
     ) {
         self.workspaceName = workspaceName
         let resolvedService = fileService ?? WorkspaceFileManager(workspaceName: workspaceName)
+        resolvedService.isSyncing = isSyncing
         self.fileService = resolvedService
+        self.isSyncing = isSyncing
+        self.syncingPeerName = syncingPeerName
 
         if let initial = initialItems {
             self.items = initial
@@ -254,9 +271,13 @@ public final class FileExplorerViewModel {
         }
     }
 
-    // MARK: - Real Filesystem CRUD Operations
+    // MARK: - Real Filesystem CRUD Operations (Guarded by isSyncing Write-Lock)
 
     public func createItem(name: String, isFolder: Bool, destinationFolder: String) {
+        guard !isSyncing else {
+            self.errorMessage = WorkspaceFilesystemError.workspaceLocked.localizedDescription
+            return
+        }
         let cleanFolder = destinationFolder.isEmpty ? "/" : destinationFolder
         do {
             if isFolder {
@@ -272,6 +293,10 @@ public final class FileExplorerViewModel {
     }
 
     public func renameItem(item: FileItem, newName: String) {
+        guard !isSyncing else {
+            self.errorMessage = WorkspaceFilesystemError.workspaceLocked.localizedDescription
+            return
+        }
         do {
             _ = try fileService.renameItem(at: item.path, to: newName)
             loadItems()
@@ -282,6 +307,10 @@ public final class FileExplorerViewModel {
     }
 
     public func deleteItem(item: FileItem) {
+        guard !isSyncing else {
+            self.errorMessage = WorkspaceFilesystemError.workspaceLocked.localizedDescription
+            return
+        }
         do {
             try fileService.deleteItem(at: item.path)
             if selectedItemId == item.id {
@@ -298,6 +327,10 @@ public final class FileExplorerViewModel {
     }
 
     public func duplicateItem(item: FileItem) {
+        guard !isSyncing else {
+            self.errorMessage = WorkspaceFilesystemError.workspaceLocked.localizedDescription
+            return
+        }
         do {
             _ = try fileService.duplicateItem(at: item.path)
             loadItems()
@@ -308,6 +341,10 @@ public final class FileExplorerViewModel {
     }
 
     public func moveItem(item: FileItem, destinationFolder: String) {
+        guard !isSyncing else {
+            self.errorMessage = WorkspaceFilesystemError.workspaceLocked.localizedDescription
+            return
+        }
         do {
             _ = try fileService.moveItem(from: item.path, to: destinationFolder)
             loadItems()
@@ -332,6 +369,10 @@ public final class FileExplorerViewModel {
     }
 
     public func saveActiveDocument(content: String) {
+        guard !isSyncing else {
+            self.errorMessage = WorkspaceFilesystemError.workspaceLocked.localizedDescription
+            return
+        }
         guard let item = activeDocumentItem else { return }
         isSavingDocument = true
         do {
@@ -355,12 +396,21 @@ public final class FileExplorerViewModel {
     // MARK: - Inline Creation Helpers
 
     public func startInlineCreation(parentPath: String, isFolder: Bool) {
+        guard !isSyncing else {
+            self.errorMessage = WorkspaceFilesystemError.workspaceLocked.localizedDescription
+            return
+        }
         self.inlineCreationTarget = parentPath
         self.inlineCreationIsFolder = isFolder
         self.inlineCreationName = ""
     }
 
     public func commitInlineCreation() {
+        guard !isSyncing else {
+            cancelInlineCreation()
+            self.errorMessage = WorkspaceFilesystemError.workspaceLocked.localizedDescription
+            return
+        }
         guard let parent = inlineCreationTarget else { return }
         let clean = inlineCreationName.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !clean.isEmpty else {
@@ -381,5 +431,31 @@ public final class FileExplorerViewModel {
         self.inlineCreationTarget = nil
         self.inlineCreationName = ""
         self.inlineCreationIsFolder = false
+    }
+
+    // MARK: - Workspace Write-Lock Guard Lifecycle
+
+    public func acquireSyncLock(peerName: String? = nil, isResolver: Bool = false) {
+        self.isSyncing = true
+        self.syncingPeerName = peerName
+        self.isResolver = isResolver
+        self.fileService.isSyncing = true
+        closeModalsAndSheets()
+    }
+
+    public func releaseSyncLock() {
+        self.isSyncing = false
+        self.syncingPeerName = nil
+        self.isResolver = false
+        self.fileService.isSyncing = false
+    }
+
+    public func closeModalsAndSheets() {
+        self.activeOptionsItem = nil
+        self.showCreateModal = false
+        self.activeRenameItem = nil
+        self.activeDeleteItem = nil
+        self.activeMoveItem = nil
+        self.cancelInlineCreation()
     }
 }

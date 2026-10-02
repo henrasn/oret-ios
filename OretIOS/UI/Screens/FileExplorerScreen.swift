@@ -11,24 +11,32 @@ import SwiftUI
 
 public struct FileExplorerScreen: View {
     @State private var viewModel: FileExplorerViewModel
+    @State private var showSyncHubSheet: Bool = false
     public var onSettings: (() -> Void)?
+    public var onSyncHub: (() -> Void)?
     public var onFileSelected: ((FileItem) -> Void)?
 
     public init(
         workspaceName: String = "notes",
         initialItems: [FileItem]? = nil,
         fileService: WorkspaceFilesystemProtocol? = nil,
+        isSyncing: Bool = false,
+        syncingPeerName: String? = nil,
         onSettings: (() -> Void)? = nil,
+        onSyncHub: (() -> Void)? = nil,
         onFileSelected: ((FileItem) -> Void)? = nil
     ) {
         self._viewModel = State(
             initialValue: FileExplorerViewModel(
                 workspaceName: workspaceName,
                 fileService: fileService,
-                initialItems: initialItems
+                initialItems: initialItems,
+                isSyncing: isSyncing,
+                syncingPeerName: syncingPeerName
             )
         )
         self.onSettings = onSettings
+        self.onSyncHub = onSyncHub
         self.onFileSelected = onFileSelected
     }
 
@@ -42,10 +50,27 @@ public struct FileExplorerScreen: View {
                 // Header Top Bar
                 headerTopBar
 
+                // Persistent Read-Only Write-Lock Banner (when sync active)
+                if viewModel.isSyncing {
+                    ReadOnlyLockBanner(
+                        peerName: viewModel.syncingPeerName,
+                        isResolver: viewModel.isResolver,
+                        onDetailsTapped: {
+                            if let onSyncHub = onSyncHub {
+                                onSyncHub()
+                            } else {
+                                showSyncHubSheet = true
+                            }
+                        }
+                    )
+                    .transition(.move(edge: .top).combined(with: .opacity))
+                }
+
                 // Middle Tree Content Area
                 FileTreeView(
                     items: viewModel.displayedItems,
                     selectedItemId: viewModel.selectedItemId,
+                    isSyncing: viewModel.isSyncing,
                     inlineCreationTarget: viewModel.inlineCreationTarget,
                     inlineCreationName: $viewModel.inlineCreationName,
                     inlineCreationIsFolder: viewModel.inlineCreationIsFolder,
@@ -60,7 +85,9 @@ public struct FileExplorerScreen: View {
                         onFileSelected?(item)
                     },
                     onOptions: { item in
-                        viewModel.activeOptionsItem = item
+                        if !viewModel.isSyncing {
+                            viewModel.activeOptionsItem = item
+                        }
                     },
                     onCommitInlineCreation: {
                         viewModel.commitInlineCreation()
@@ -76,15 +103,18 @@ public struct FileExplorerScreen: View {
                     tags: viewModel.availableTags,
                     selectedTag: viewModel.selectedTag,
                     searchQuery: $viewModel.searchQuery,
+                    isSyncing: viewModel.isSyncing,
                     onSelectTag: { tag in
                         viewModel.selectTag(tag)
                     },
                     onNewFile: {
+                        guard !viewModel.isSyncing else { return }
                         viewModel.createModalInitialIsFolder = false
                         viewModel.createModalInitialFolder = "/"
                         viewModel.showCreateModal = true
                     },
                     onNewFolder: {
+                        guard !viewModel.isSyncing else { return }
                         viewModel.createModalInitialIsFolder = true
                         viewModel.createModalInitialFolder = "/"
                         viewModel.showCreateModal = true
@@ -236,6 +266,7 @@ public struct FileExplorerScreen: View {
                 DocumentEditorSheet(
                     item: activeDoc,
                     initialContent: viewModel.activeDocumentContent,
+                    isReadOnly: viewModel.isSyncing,
                     isPresented: Binding(
                         get: { viewModel.activeDocumentItem != nil },
                         set: { if !$0 { viewModel.closeDocument() } }
@@ -245,6 +276,13 @@ public struct FileExplorerScreen: View {
                     }
                 )
             }
+        }
+        .sheet(isPresented: $showSyncHubSheet) {
+            ConnectionHubScreen(
+                onBack: {
+                    showSyncHubSheet = false
+                }
+            )
         }
     }
 
@@ -276,24 +314,47 @@ public struct FileExplorerScreen: View {
 
             // Row 2: Status sync button, stats count, and expand/collapse actions
             HStack(spacing: 8) {
-                // Synced indicator button
-                HStack(spacing: 5) {
-                    Circle()
-                        .fill(AgedManuscriptTheme.Colors.statusGreen)
-                        .frame(width: 7, height: 7)
+                // Synced indicator button (changes style when syncing write-lock is active)
+                Button(action: {
+                    if let onSyncHub = onSyncHub {
+                        onSyncHub()
+                    } else {
+                        showSyncHubSheet = true
+                    }
+                }) {
+                    HStack(spacing: 5) {
+                        Circle()
+                            .fill(
+                                viewModel.isSyncing
+                                    ? AgedManuscriptTheme.Colors.folderAmber
+                                    : AgedManuscriptTheme.Colors.statusGreen
+                            )
+                            .frame(width: 7, height: 7)
 
-                    Text("Synced")
-                        .font(AgedManuscriptTheme.Fonts.sansLabel(size: 12, weight: .medium))
-                        .foregroundColor(AgedManuscriptTheme.Colors.inkPrimary)
+                        Text(viewModel.isSyncing ? "Syncing..." : "Synced")
+                            .font(AgedManuscriptTheme.Fonts.sansLabel(size: 12, weight: .medium))
+                            .foregroundColor(
+                                viewModel.isSyncing
+                                    ? AgedManuscriptTheme.Colors.folderAmber
+                                    : AgedManuscriptTheme.Colors.inkPrimary
+                            )
+                    }
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 4)
+                    .background(AgedManuscriptTheme.Colors.parchment)
+                    .clipShape(RoundedRectangle(cornerRadius: 6))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 6)
+                            .stroke(
+                                viewModel.isSyncing
+                                    ? AgedManuscriptTheme.Colors.folderAmber.opacity(0.6)
+                                    : AgedManuscriptTheme.Colors.parchmentBorder,
+                                lineWidth: 1
+                            )
+                    )
                 }
-                .padding(.horizontal, 8)
-                .padding(.vertical, 4)
-                .background(AgedManuscriptTheme.Colors.parchment)
-                .clipShape(RoundedRectangle(cornerRadius: 6))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 6)
-                        .stroke(AgedManuscriptTheme.Colors.parchmentBorder, lineWidth: 1)
-                )
+                .buttonStyle(PlainButtonStyle())
+                .accessibilityLabel(Text(viewModel.isSyncing ? "Sync Active - Workspace Locked" : "Device Sync Status"))
 
                 Spacer()
 
@@ -443,5 +504,14 @@ public struct FileExplorerScreen: View {
     return FileExplorerScreen(
         workspaceName: "personal-notes",
         initialItems: FileItem.sampleHierarchy
+    )
+}
+
+#Preview("Sync Locked - Read Only Mode") {
+    FileExplorerScreen(
+        workspaceName: "personal-notes",
+        initialItems: FileItem.sampleHierarchy,
+        isSyncing: true,
+        syncingPeerName: "MacBook Air"
     )
 }
