@@ -12,9 +12,14 @@ import SwiftUI
 public struct FileExplorerScreen: View {
     @State private var viewModel: FileExplorerViewModel
     @State private var showSyncHubSheet: Bool = false
+    @State private var showConflictResolutionSheet: Bool = false
+    @State private var showNonResolverWaitingSheet: Bool = false
+    @State private var showSyncSummarySheet: Bool = false
     public var onSettings: (() -> Void)?
     public var onSyncHub: (() -> Void)?
     public var onFileSelected: ((FileItem) -> Void)?
+    public var onOpenReconciliation: (() -> Void)?
+    public var onOpenSummary: (() -> Void)?
 
     public init(
         workspaceName: String = "notes",
@@ -24,7 +29,9 @@ public struct FileExplorerScreen: View {
         syncingPeerName: String? = nil,
         onSettings: (() -> Void)? = nil,
         onSyncHub: (() -> Void)? = nil,
-        onFileSelected: ((FileItem) -> Void)? = nil
+        onFileSelected: ((FileItem) -> Void)? = nil,
+        onOpenReconciliation: (() -> Void)? = nil,
+        onOpenSummary: (() -> Void)? = nil
     ) {
         self._viewModel = State(
             initialValue: FileExplorerViewModel(
@@ -38,6 +45,8 @@ public struct FileExplorerScreen: View {
         self.onSettings = onSettings
         self.onSyncHub = onSyncHub
         self.onFileSelected = onFileSelected
+        self.onOpenReconciliation = onOpenReconciliation
+        self.onOpenSummary = onOpenSummary
     }
 
     public var body: some View {
@@ -281,6 +290,31 @@ public struct FileExplorerScreen: View {
             ConnectionHubScreen(
                 onBack: {
                     showSyncHubSheet = false
+                }
+            )
+        }
+        .sheet(isPresented: $showConflictResolutionSheet) {
+            ConflictResolutionScreen(
+                onFinish: { _ in
+                    showConflictResolutionSheet = false
+                    showSyncSummarySheet = true
+                },
+                onCancel: {
+                    showConflictResolutionSheet = false
+                }
+            )
+        }
+        .sheet(isPresented: $showNonResolverWaitingSheet) {
+            NonResolverWaitingScreen(
+                onCancel: {
+                    showNonResolverWaitingSheet = false
+                }
+            )
+        }
+        .sheet(isPresented: $showSyncSummarySheet) {
+            SyncFinishedSummaryScreen(
+                onClose: {
+                    showSyncSummarySheet = false
                 }
             )
         }
